@@ -201,20 +201,29 @@ function MqttConventionHomeAssistant:onDeviceNodeCreated(deviceNode)
     ---- SENSOR SPECIFIC
     ------------------------------------------
     if (haEntity.type == "binary_sensor" or haEntity.type == "sensor") then
-        -- *** refactor, but keep device_class 'None' when default sensor is used by the QuickApp
-        if (PrototypeEntity.subtype ~= haEntity.subtype) then
-            msg.device_class = haEntity.subtype
-        end
-        -- *** refactor?
-        if (PrototypeEntity.unitOfMeasurement ~= haEntity.unitOfMeasurement) then
-            msg.unit_of_measurement = haEntity.unitOfMeasurement
-        end
+        local unit = haEntity.unitOfMeasurement
+        msg.unit_of_measurement = unit
 
-        -- Energy meter requires extra properties
-        if (haEntity.subtype == "energy") then
+        -- Assign device_class dynamically based on unit
+        local unit_to_device_class = {
+            ["A"] = "current",
+            ["V"] = "voltage",
+            ["W"] = "power",
+            ["kWh"] = "energy",
+            ["Wh"] = "energy"
+            -- optionally: ["Hz"] = "frequency", etc.
+        }
+
+        msg.device_class = unit_to_device_class[unit]
+
+        -- Assign correct state_class
+        if msg.device_class == "energy" then
             msg.state_class = "total_increasing"
+        else
+            msg.state_class = "measurement"
         end
 
+        
         if (haEntity.subtype == RemoteController.subtype) then
             -- Remote controller sensor is not natively supported by Home Assistant, thus need to replace "remoteController" subtype with "None" haEntity class
             msg.device_class = nil
